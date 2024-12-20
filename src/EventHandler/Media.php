@@ -102,7 +102,7 @@ abstract class Media extends IpcCapable implements JsonSerializable
             'InputFileLocation' => $this->location
         ] = $API->getDownloadInfo($rawMedia);
         $this->fileName = $name.$this->fileExt;
-
+        var_dump($API->getDownloadInfo($rawMedia));
         [
             'file_id' => $this->botApiFileId,
             'file_unique_id' => $this->botApiFileUniqueId
@@ -122,7 +122,7 @@ abstract class Media extends IpcCapable implements JsonSerializable
         } else {
             $this->thumb =
                 isset($mediaDownloadInfo['thumb']) ?
-                    new Thumbnail($API, $mediaDownloadInfo['thumb']) :
+                    new Thumbnail($API, $mediaDownloadInfo['thumb'], $this->location) :
                     null;
             $this->thumbHeight = $this->thumb?->height;
             $this->thumbWidth = $this->thumb?->width;

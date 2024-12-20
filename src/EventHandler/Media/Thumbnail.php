@@ -36,7 +36,7 @@ class Thumbnail extends IpcCapable implements JsonSerializable
     /** Photo height */
     public readonly int $height;
     /** File size in bytes */
-    public readonly string $size;
+    public readonly int $size;
     /** Thumb file name */
     public readonly string $fileName;
 
@@ -46,6 +46,8 @@ class Thumbnail extends IpcCapable implements JsonSerializable
     public function __construct(
         MTProto $API,
         array $rawThumbnail,
+        /** @internal Media location */
+        public readonly array $location,
 
         /** Whether this media is protected */
         public readonly bool $protected = false
@@ -127,6 +129,7 @@ class Thumbnail extends IpcCapable implements JsonSerializable
             'ext' => $this->fileExt,
             'mime' => $this->mimeType,
             'size' => $this->size,
+            'InputFileLocation' => $this->location,
         ];
         return $result;
     }
