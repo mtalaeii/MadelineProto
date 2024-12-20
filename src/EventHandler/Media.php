@@ -18,6 +18,7 @@ namespace danog\MadelineProto\EventHandler;
 
 use Amp\ByteStream\ReadableStream;
 use Amp\Cancellation;
+use danog\MadelineProto\EventHandler\Media\Thumbnail;
 use danog\MadelineProto\Ipc\IpcCapable;
 use danog\MadelineProto\MTProto;
 use danog\MadelineProto\TL\Types\Bytes;
@@ -74,8 +75,8 @@ abstract class Media extends IpcCapable implements JsonSerializable
     /** Whether this media originates from a secret chat. */
     public readonly bool $encrypted;
 
-    /** Content of thumbnail file (JPEGfile, quality 55, set in a square 90x90) only for secret chats. */
-    public readonly ?Bytes $thumb;
+    /** Content of thumbnail file (JPEGfile, quality 55, set in a square 90x90). */
+    public readonly Bytes|Thumbnail|null $thumb;
     /** Thumbnail height only for secret chats. */
     public readonly ?int $thumbHeight;
     /** Thumbnail width only for secret chats. */
@@ -105,7 +106,7 @@ abstract class Media extends IpcCapable implements JsonSerializable
         [
             'file_id' => $this->botApiFileId,
             'file_unique_id' => $this->botApiFileUniqueId
-        ] = $API->extractBotAPIFile($API->MTProtoToBotAPI($rawMedia));
+        ] = ($mediaDownloadInfo = $API->extractBotAPIFile($API->MTProtoToBotAPI($rawMedia)));
 
         $this->creationDate = ($rawMedia['document'] ?? $rawMedia['photo'] ?? $rawMedia)['date'];
         $this->ttl = $rawMedia['ttl_seconds'] ?? null;
@@ -119,9 +120,12 @@ abstract class Media extends IpcCapable implements JsonSerializable
             $this->thumbHeight = $rawMedia['thumb_h'] ?? null;
             $this->thumbWidth = $rawMedia['thumb_w'] ?? null;
         } else {
-            $this->thumb = null;
-            $this->thumbHeight = null;
-            $this->thumbWidth = null;
+            $this->thumb =
+                isset($mediaDownloadInfo['thumb']) ?
+                    new Thumbnail($API, $mediaDownloadInfo['thumb']) :
+                    null;
+            $this->thumbHeight = $this->thumb?->height;
+            $this->thumbWidth = $this->thumb?->width;
         }
     }
 
