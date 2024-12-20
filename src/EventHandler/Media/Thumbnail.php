@@ -20,6 +20,7 @@ use Amp\ByteStream\ReadableStream;
 use Amp\Cancellation;
 use danog\MadelineProto\Ipc\IpcCapable;
 use danog\MadelineProto\MTProto;
+use danog\MadelineProto\TL\Conversion\BotAPIFiles;
 use JsonSerializable;
 
 /**
@@ -27,14 +28,15 @@ use JsonSerializable;
  */
 class Thumbnail extends IpcCapable implements JsonSerializable
 {
+    use BotAPIFiles;
     /** Identifier for this file, which can be used to download or reuse the file */
     public readonly string $botApiFileId;
     /** Unique identifier for this file, which is supposed to be the same over time and for different bots. Can't be used to download or reuse the file. */
     public readonly string $botApiFileUniqueId;
     /** Photo width */
-    public readonly int $width;
+    public readonly ?int $width;
     /** Photo height */
-    public readonly int $height;
+    public readonly ?int $height;
     /** File size in bytes */
     public readonly int $size;
     /** Thumb file name */
@@ -43,24 +45,17 @@ class Thumbnail extends IpcCapable implements JsonSerializable
     /** Thumb file extension */
     public readonly string $fileExt;
     public readonly ?string $mimeType;
+
+    /** @internal Media location */
+    public readonly array $location;
     public function __construct(
         MTProto $API,
-        array $rawThumbnail,
-        /** @internal Media location */
-        public readonly array $location,
-
-        /** Whether this media is protected */
-        public readonly bool $protected = false
+        array $rawThumbnail
     ) {
         parent::__construct($API);
-        $this->botApiFileId = $rawThumbnail['file_id'];
-        $this->botApiFileUniqueId = $rawThumbnail['file_unique_id'];
-        $this->width = $rawThumbnail['width'];
-        $this->height = $rawThumbnail['height'];
-        $this->size = $rawThumbnail['file_size'];
-        $this->fileName = $rawThumbnail['file_name'] ?? 'Thumbnail.jpg';
-        $this->fileExt = $rawThumbnail['file_ext'] ?? '.jpg';
-        $this->mimeType = $rawThumbnail['mime_type'] ?? null;
+        if(!$this->getMediaPreview($rawThumbnail)) {
+            return null;
+        }
 
     }
 
@@ -68,8 +63,8 @@ class Thumbnail extends IpcCapable implements JsonSerializable
     public function jsonSerialize(): mixed
     {
         $v = get_object_vars($this);
-        unset($v['API'], $v['session']);
-        return $v;
+        unset($v['API'], $v['session'],$v['location']);
+        return !empty($v) ? $v : null;
     }
 
     /**
@@ -131,6 +126,75 @@ class Thumbnail extends IpcCapable implements JsonSerializable
             'size' => $this->size,
             'InputFileLocation' => $this->location,
         ];
+
         return $result;
+    }
+
+    private function getMediaPreview(array $media): bool
+    {
+
+        $media = match ($media['_']) {
+            'messageMediaPhoto' => $media['photo'],
+            'messageMediaDocument' => $media['document'],
+            'messageMediaWebPage' => $media['webpage'],
+        };
+
+        $thumb = null;
+        $thumbInfo = null;
+        switch (true) {
+            case isset($media['sizes']):
+                foreach ($media['sizes'] as $size) {
+                    if ($size['_'] === 'photoSize') {
+                        $thumb = $size;
+                        $thumbInfo = $this->photosizeToBotAPI($thumb, $media, true);
+                    }
+                }
+                break;
+            case isset($media['thumb']['size']):
+                $thumb = $media['thumb'];
+                break;
+            case !empty($media['thumbs']):
+                foreach ($media['thumbs'] as $size) {
+                    if ($size['_'] === 'photoSize') {
+                        $thumb = $size;
+                        $thumbInfo = $this->photosizeToBotAPI($thumb, $media, true);
+                    }
+                }
+                break;
+            case isset($media['photo']['sizes']):
+                foreach ($media['photo']['sizes'] as $size) {
+                    if ($size['_'] === 'photoSize') {
+                        $thumb = $size;
+                        $thumbInfo = $this->photosizeToBotAPI($thumb, $media, true);
+                    }
+                }
+                break;
+            default:
+                return false;
+
+        }
+
+        $info = $this->getClient()->getDownloadInfo($thumb);
+
+        if ($media['_'] === 'webPage') {
+            $media = $media['photo'];
+        }
+
+        //Фикс для LAYER 100+
+        //TODO: Удалить, когда снова станет доступна загрузка photoSize
+        if (isset($info['thumb_size'])) {
+            $infoFull = $this->getClient()->getDownloadInfo($media);
+            $infoFull['InputFileLocation']['thumb_size'] = $info['thumb_size'];
+            $this->location = $infoFull['InputFileLocation'];
+            $this->size = $thumbInfo['file_size'];
+            $this->fileExt = '.jpg';
+            $this->fileName = basename($thumbInfo['file_name'], $this->fileExt);
+            $this->mimeType = $thumbInfo['mime_type'] ?? 'image/jpeg';
+            $this->height = $thumbInfo['height'];
+            $this->width = $thumbInfo['width'];
+            $this->botApiFileId = $thumbInfo['file_id'];
+            $this->botApiFileUniqueId = $thumbInfo['file_unique_id'];
+        }
+        return true;
     }
 }

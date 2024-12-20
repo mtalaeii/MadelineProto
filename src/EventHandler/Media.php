@@ -106,7 +106,7 @@ abstract class Media extends IpcCapable implements JsonSerializable
         [
             'file_id' => $this->botApiFileId,
             'file_unique_id' => $this->botApiFileUniqueId
-        ] = ($mediaDownloadInfo = $API->extractBotAPIFile($API->MTProtoToBotAPI($rawMedia)));
+        ] = $API->extractBotAPIFile($API->MTProtoToBotAPI($rawMedia));
 
         $this->creationDate = ($rawMedia['document'] ?? $rawMedia['photo'] ?? $rawMedia)['date'];
         $this->ttl = $rawMedia['ttl_seconds'] ?? null;
@@ -120,12 +120,9 @@ abstract class Media extends IpcCapable implements JsonSerializable
             $this->thumbHeight = $rawMedia['thumb_h'] ?? null;
             $this->thumbWidth = $rawMedia['thumb_w'] ?? null;
         } else {
-            $this->thumb =
-                isset($mediaDownloadInfo['thumb']) ?
-                    new Thumbnail($API, $mediaDownloadInfo['thumb'], $this->location) :
-                    null;
-            $this->thumbHeight = $this->thumb?->height;
-            $this->thumbWidth = $this->thumb?->width;
+            $this->thumb = new Thumbnail($API, $rawMedia);
+            $this->thumbHeight = $this->thumb->height ?? null;
+            $this->thumbWidth = $this->thumb->width ?? null;
         }
     }
 
