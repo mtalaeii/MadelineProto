@@ -56,7 +56,7 @@ class Thumbnail extends IpcCapable implements JsonSerializable
         $this->width = $rawThumbnail['width'];
         $this->height = $rawThumbnail['height'];
         $this->size = $rawThumbnail['file_size'];
-        $this->fileName = $rawThumbnail['file_name'] ?? 'Thumbnail';
+        $this->fileName = $rawThumbnail['file_name'] ?? 'Thumbnail.jpg';
         $this->fileExt = $rawThumbnail['file_ext'] ?? '.jpg';
         $this->mimeType = $rawThumbnail['mime_type'] ?? null;
 
