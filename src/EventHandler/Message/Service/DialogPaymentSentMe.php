@@ -14,7 +14,7 @@
  * @link https://docs.madelineproto.xyz MadelineProto documentation
  */
 
-namespace danog\MadelineProto\EventHandler\Message\Service\DialogGroupCall;
+namespace danog\MadelineProto\EventHandler\Message\Service;
 
 use danog\MadelineProto\EventHandler\Message\ServiceMessage;
 use danog\MadelineProto\EventHandler\Payments\PaymentCharge;
